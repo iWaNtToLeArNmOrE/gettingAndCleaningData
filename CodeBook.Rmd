@@ -1,0 +1,194 @@
+# Getting and cleaning data: course project 
+========================================================
+
+## Reading data
+
+``` {r, cache=TRUE}
+#Read the training dataset
+train <- read.table("./train//X_train.txt")
+
+#Read the test dataset
+test <- test <- read.table("./test//X_test.txt")
+
+#Read the list of features that will be sued as variable names
+features <- read.table("./features.txt")
+features[,2] <- gsub("()-", ".", tolower(as.character(features[,2])), fixed =TRUE)
+features[,2] <- gsub("()", ".", tolower(as.character(features[,2])), fixed =TRUE)
+features[,2] <- gsub("-", ".", tolower(as.character(features[,2])), fixed =TRUE)
+features[,2] <- gsub(",", ".", as.character(features[,2]), fixed =TRUE)
+features[,2] <- gsub("(", ".", as.character(features[,2]), fixed =TRUE)
+features[,2] <- gsub(")", ".", as.character(features[,2]), fixed =TRUE)
+
+#Read the list of training subjects
+trainingSub <- read.table("./train//subject_train.txt")
+
+#Read the list of test subjects
+testSub <- read.table("./test//subject_test.txt")
+
+#Read the training labels
+labelTrain <- read.table("./train//y_train.txt")
+
+#Read the test labels
+labelTest <- read.table("./test//y_test.txt")
+
+#Read activity names and the activity labels
+activityNames <- read.table("./activity_labels.txt")
+```
+
+## Codes for merging data
+
+``` {r, cache=TRUE}
+
+#Add a column containing the subject ID to training dataset
+trainWithSub <- cbind(train, trainingSub)
+
+#Add a column containing the subject ID to test dataset
+testWithSub <- cbind(test, testSub)
+
+#Add activity labels to training dataset
+trainWithSubAndAct <- cbind(trainWithSub, labelTrain)
+
+#Add activity labels to test dataset
+testWithSubAndAct <- cbind(testWithSub, labelTest)
+
+#Merge the training and activity datasets
+mergedTrainAndTest <- rbind(trainWithSubAndAct, testWithSubAndAct)
+
+#Add variable names to the merged dataset
+colnames(mergedTrainAndTest) <- c(features[,2], "Subject.ID", "activityLabel")
+
+```
+
+## Code for adding a column of activity names and extracting only the mean and standard deviation
+
+``` {r cache=TRUE}
+
+#Convert activity label to activity name
+numObs <- length(mergedTrainAndTest$activityLabel)
+counter = 1
+tempVect <- rep(0, times = numObs)
+rownames(activityNames) <- activityNames[,1]
+
+while (counter <= numObs){
+    tempVect[counter] <- as.character(activityNames[mergedTrainAndTest$activityLabel[counter], 2])
+    counter = counter + 1
+}
+
+#Finalized merged dataset
+finalizedMerged <- cbind(mergedTrainAndTest, tempVect)
+
+#Renaming the columns in the merged dataset
+colnames(finalizedMerged) <- c(as.character(features[,2]), "Subject.ID", "activityLabel", 
+                               "activityName")
+
+#A list of all variable names extracted from the file features.txt
+varList <- as.character(features[,2])
+
+#A list of variable names containing ".mean". These variable names correspond to the mean of the measurements
+meanVarList <- varList[grep(".mean", varList, fixed = TRUE)]
+
+#A list of variable names containing ".mean". These variable names correspond to the standard deviation of the measurements
+stdVarList <- varList[grep(".std", varList, fixed = TRUE)]
+
+#A vector containing the column indices of mean variables
+meanVarLoc <- which(varList %in% meanVarList)
+
+#A vector containing the column indices of standard deviation variables
+stdVarLoc <- which(varList %in% stdVarList)
+
+onlyMeans <- data.frame(finalizedMerged$Subject.ID, finalizedMerged$activityName)
+
+onlyMeans <- cbind(onlyMeans, finalizedMerged[,meanVarLoc])
+
+meansAndStd <- cbind(onlyMeans, finalizedMerged[,stdVarLoc])
+
+```
+
+## The code for creating the tidy dataset
+
+``` {r, cache=TRUE}
+
+subSplit <- split(meansAndStd, as.factor(meansAndStd$finalizedMerged.activityName))
+layingTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+sitTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+standTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+walkTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+downTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+upTidyData <- data.frame(matrix(data = NA, nrow = 30, ncol = 81))
+
+laying <- subSplit$LAYING
+layingSplit <- split(laying, laying$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        layingTidyData[i,1] <- as.character(i)
+        layingTidyData[i,2] <- as.character("LAYING")
+        layingTidyData[i,j] <- mean(data.matrix(layingSplit[[i]][j]))
+    }
+}
+
+sitting <- subSplit$SITTING
+sitSplit <- split(sitting, sitting$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        sitTidyData[i,1] <- as.character(i)
+        sitTidyData[i,2] <- as.character("SITTING")
+        sitTidyData[i,j] <- mean(data.matrix(sitSplit[[i]][j]))
+    }
+}
+
+stand <- subSplit$STANDING
+standSplit <- split(stand, stand$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        standTidyData[i,1] <- as.character(i)
+        standTidyData[i,2] <- as.character("STANDING")
+        standTidyData[i,j] <- mean(data.matrix(standSplit[[i]][j]))
+    }
+}
+
+walk <- subSplit$WALKING
+walkSplit <- split(walk, walk$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        walkTidyData[i,1] <- as.character(i)
+        walkTidyData[i,2] <- as.character("WALKING")
+        walkTidyData[i,j] <- mean(data.matrix(walkSplit[[i]][j]))
+    }
+}
+
+down <- subSplit$WALKING_DOWNSTAIRS
+downSplit <- split(down, down$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        downTidyData[i,1] <- as.character(i)
+        downTidyData[i,2] <- as.character("WALKING_DOWNSTAIRS")
+        downTidyData[i,j] <- mean(data.matrix(downSplit[[i]][j]))
+    }
+}
+
+up <- subSplit$WALKING_UPSTAIRS
+upSplit <- split(up, up$finalizedMerged.Subject.ID)
+for (i in 1:30) {
+    for (j in 3:81){
+        upTidyData[i,1] <- as.character(i)
+        upTidyData[i,2] <- as.character("WALKING_UPSTAIRS")
+        upTidyData[i,j] <- mean(data.matrix(upSplit[[i]][j]))
+    }
+}
+
+
+tidyData <- rbind(layingTidyData, sitTidyData, standTidyData, walkTidyData, downTidyData, upTidyData)
+
+colnames(tidyData) <- as.character(colnames(meansAndStd))
+
+#str(tidyData)
+
+```
+
+## Writing tidy data to a file
+
+``` {r}
+#Use write.table function to write the tidy data to hard disk
+write.table(tidyData, file ="tidyData.txt", row.names= FALSE)
+
+```
